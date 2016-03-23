@@ -8,7 +8,7 @@
 	 $tag = $_POST['tag'];
 	 
 	 //Include Databse handler
-	 require_once 'include/DB_Functions.php';
+	 require_once 'include/DB_FunctionsSam.php';
 	 $db = new DB_Functions();
 	 //Response Array
 	 $response = array("tag" => $tag, "success" => 0, "error" => 0);
@@ -126,12 +126,13 @@
 			echo json_encode($response);
 		}
 	 
-	 }else if($tag == 'findfree'){
+	 }else if($tag == 'free'){
 		 $hr = $_POST['hr'];
 		 $minute = $_POST['minute'];
 		 $range = $_POST['range'];
+		 $date = $_POST['date'];
 		 
-		 $freetimes = $db->findFree($hr, $minute, $range);
+		 $freetimes = $db->findFree($hr, $minute, $range, $date);
 		 
 		 if($freetimes){
 			 $response["success"] = 1;
@@ -143,6 +144,32 @@
 			 echo json_encode($response);
 		 }
 		 
+	 }else if($tag == 'cur'){
+		 $uname = $_POST['uname'];
+		 $dt = $_POST['dt'];
+		 
+		 $curCourses = $db->getCurrentCourses($uname,$dt);
+		 
+		 if($curCourses){
+			 $response["success"] = 1;
+			 $response["crses"] = $curCourses[0];
+			 echo json_encode($response);
+		 }else{
+			 $response["error"] = 10;
+			 $response["error_msg"] = "No current courses";
+			 echo json_encode($response);
+		 }
+	 }else if($tag == 'calcu'){
+		 $uname = $_POST['uname'];
+		 $today = $_POST['today'];
+		 
+		 $study = $db->scheduleStudy($uname, $today);
+		 
+		 if($study){
+			 $response["success"] = 1;
+		 }else{
+			 $response["error"] = 12;
+		 }
 	 }else {
 		$response["error"] = 3;
 		$response["error_msg"] = "JSON ERROR";
