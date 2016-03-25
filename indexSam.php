@@ -98,6 +98,118 @@
 			 $response["error_msg"] = "cant do it";
 			 echo json_encode($response);
 		 }
+	 }else if($tag == 'mult'){
+		 $notes = $_POST['notes'];
+		 $sdate = $_POST['sdate'];
+		 $etime = $_POST['etime'];
+		 $stime = $_POST['stime'];
+		 $namedept = $_POST['namedept'];
+		 $priority = $_POST['priority'];
+		 $location = $_POST['location'];
+		 $evuname = $_POST['evuname'];
+		 $days = $_POST['days'];
+		 
+		 $multi = $db->createMulti($notes, $sdate, $etime, $stime, $namedept, $priority, $days, $location, $evuname);
+		 
+		 if($multi){
+			$response["success"] = 1;
+			$response["event_num"] = $multi['event_num'];
+			$response["namedept"] = $multi['name_dept'];
+			$response["msg"] = "course created!";
+			echo json_encode($response);
+		 }else{
+			 $response["error"] = 65;
+			 $response["error_msg"] = "multi create failed";
+			 echo json_encode($response);
+		 } 
+	 }else if($tag == 'remind'){
+		 $num = $_POST['num'];
+		 $units = $_POST['units'];
+		 $even = $_POST['even'];
+		 
+		 $remind = $db->newReminder($num, $units, $even);
+		 
+		 if($remind){
+			 $response["success"] = 1;
+			 $response["msg"] = "reminder added";
+			 echo json_encode($response);
+		 }else{
+			 $response["error"] = 94;
+			 $response["error_msg"] = "reminder failed";
+			 echo json_encode($response);
+		 }
+		 
+	 }else if($tag == 'delete'){
+		 $evnum = $_POST['evnum'];
+		 
+		 $del = $db->deleteEvent($evnum);
+		 
+		 if($del){
+			 $response["success"] = 1;
+			 $response["msg"] = "event deleted";
+			 echo json_encode($response);
+		 }else{
+			 $response["error"] = 45;
+			 $response["error_msg"] = "event still around";
+			 echo json_encode($response);
+		 }
+	 }else if($tag == 'norem'){
+		 $n = $_POST['n'];
+		 $u = $_POST['u'];
+		 $e = $_POST['e'];
+		 
+		 $delRem = $db->deleteReminder($n, $u, $e);
+		 
+		 if($delRem){
+			 $response["success"] = 1;
+			 $response["msg"] = "reminder deleted";
+			 echo json_encode($response);
+		 }else{
+			 $response["error"] = 48;
+			 $response["error_msg"] = "reminder still around";
+			 echo json_encode($response);
+		 }	 
+	 }else if($tag == 'deluse'){
+		 $usenm = $_POST['usenm'];
+		 
+		 $delUser = $db->deleteAccount($usenm);
+		 
+		  if($delUser){
+			 $response["success"] = 1;
+			 $response["msg"] = "account deleted";
+			 echo json_encode($response);
+		 }else{
+			 $response["error"] = 45;
+			 $response["error_msg"] = "account still around";
+			 echo json_encode($response);
+		 }
+	 }else if($tag == 'cour'){
+		 $notes = $_POST['notes'];
+		 $sdate = $_POST['sdate'];
+		 $etime = $_POST['etime'];
+		 $stime = $_POST['stime'];
+		 $namedept = $_POST['namedept'];
+		 $priority = $_POST['priority'];
+		 $location = $_POST['location'];
+		 $evuname = $_POST['evuname'];
+		 $days = $_POST['days'];
+		 $edate = $_POST['edate'];
+		 $creds = $_POST['creds'];
+		 $crsnum = $_POST['crsnum'];
+		 
+		 $course = $db->createCourse($notes, $sdate, $edate, $crsnum, $creds, $etime, $stime, $namedept, $priority, $days, $location, $evuname);
+		 
+		 if($course){
+			$response["success"] = 1;
+			$response["event_num"] = $course['event_num'];
+			$response["namedept"] = $course['name_dept'];
+			$response["msg"] = "course created!";
+			echo json_encode($response);
+		 }else{
+			 $response["error"] = 64;
+			 $response["error_msg"] = "course create failed";
+			 echo json_encode($response);
+		 } 
 	 }else if($tag == 'view'){
 		$eventnum = $_POST['eventnum'];
 		$username = $_POST['username'];
