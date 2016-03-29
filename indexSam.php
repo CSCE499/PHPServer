@@ -256,6 +256,34 @@
 			 echo json_encode($response);
 		 }
 		 
+	 }else if($tag == 'gete'){
+		 $e = $_POST['e'];
+		 
+		 $event = $db->getEvent($e);
+		 
+		 if($event){
+			 $response["success"] = 1;
+			 $response["evInfo"] = $event;
+			 echo json_encode($response);
+		 }else{
+			 $response["error"] = 21;
+			 $response["error_msg"] = "event not found";
+			 echo json_encode($response);
+		 }
+	 }else if($tag == 'all'){
+		 $u = $_POST['u'];
+		 
+		 $events = $db->getAllEvents($u);
+		 
+		 if($events){
+			 $response["success"] = 1;
+			 $response["evInfo"] = $events;
+			 echo json_encode($response);
+		 }else{
+			 $response["error"] = 23;
+			 $response["error_msg"] = "no events found";
+			 echo json_encode($response);
+		 } 
 	 }else if($tag == 'cur'){
 		 $uname = $_POST['uname'];
 		 $dt = $_POST['dt'];

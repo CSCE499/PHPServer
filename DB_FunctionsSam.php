@@ -72,12 +72,10 @@ class DB_Functions{
 		$res = mysql_query("INSERT INTO reminder VALUES('$num', '$units', '$linkedEv')");
 		
 		if(!$res){
-			echo "nope";
 			return false;
 		}else{
 			return true;
-		}
-		
+		}	
 	}
 	
 	//store course
@@ -86,14 +84,12 @@ class DB_Functions{
 							VALUES('$notes', '$s_date', '$e_time', '$s_time', '$namedept', '$priority', '$location', '$evuname', '$days')");
 								
 		if($res == false){
-			echo "false dummy";
 			return false;
 		}						
 		
 		$lastEventN = mysql_query("SELECT event_num FROM event ORDER BY event_num DESC  LIMIT 1") or die(mysql_error());
 		
 		if(!$lastEventN){
-			echo "false, stupid";
 			return false;
 		}
 		
@@ -103,9 +99,7 @@ class DB_Functions{
 		$res2 = mysql_query("INSERT INTO course VALUES('$credits','$e_date', '$crsnum', '$lastn')");
 		
 		if(!$res2){
-			echo "false, moron";
-			
-			mysql_query("DELETE FROM event WHERE event_num = '$lastn'");
+			mysql_query("DELETE FROM event WHERE event_num = '$lastn'");  //delete event created earlier in function
 			
 			return false;
 		}else{
@@ -122,14 +116,12 @@ class DB_Functions{
 							VALUES('$notes', '$s_date', '$e_time', '$s_time', '$namedept', '$priority', '$location', '$evuname', '$days')");
 		
 		if($res == false){
-			echo "false dummy";
 			return false;
 		}						
 		
 		$lastEventN = mysql_query("SELECT event_num FROM event ORDER BY event_num DESC  LIMIT 1") or die(mysql_error());
 		
 		if(!$lastEventN){
-			echo "false, stupid";
 			return false;
 		}
 		
@@ -138,10 +130,8 @@ class DB_Functions{
 		
 		$res2 = mysql_query("INSERT INTO multi VALUES('$lastn')");
 		
-		if(!$res2){
-			echo "false, moron";
-			
-			mysql_query("DELETE FROM event WHERE event_num = '$lastn'");
+		if(!$res2){	
+			mysql_query("DELETE FROM event WHERE event_num = '$lastn'");  //delete event created earlier in function
 			
 			return false;
 		}else{
@@ -177,14 +167,12 @@ class DB_Functions{
 							    VALUES('$notes', '$s_date', '$e_time', '$s_time', '$namedept', '$priority', '$location', '$evuname', '$dy1')");
 		
 		if($result == false){
-			echo "false false  false";
 			return false;
 		}
 
 		$lastEventNum = mysql_query("SELECT event_num FROM event ORDER BY event_num DESC  LIMIT 1") or die(mysql_error());
 		
 		if($lastEventNum == false){
-			echo "false false false false";
 			return false;
 		}
 		
@@ -205,8 +193,6 @@ class DB_Functions{
 			
 			return @mysql_fetch_array($result2);
 		}else{
-			echo "false last";
-			
 			mysql_query("DELETE FROM event WHERE event_num = '$lastnum'");  //delete event created earlier in function
 			
 			return false;
@@ -220,7 +206,6 @@ class DB_Functions{
 		if($res){
 			return true;
 		}else{
-			echo "still there";
 			return false;
 		}
 	}
@@ -232,7 +217,6 @@ class DB_Functions{
 		if($res){
 			return true;
 		}else{
-			echo "still there";
 			return false;
 		}
 	}
@@ -244,23 +228,63 @@ class DB_Functions{
 		if($res){
 			return true;
 		}else{
-			echo "still there";
 			return false;
 		}
 	}
 	
-	//get single event
-	public function getSingle($eventnum, $username){
-		$result = mysql_query("SELECT event.*, single.* FROM event, single, user WHERE event_num = single_e_num AND event_num = '$eventnum' AND username = '$username'") or
+	//get every event for a user
+	public function getAllEvents($username){
+		$result = mysql_query("SELECT event.*, course.* FROM event, course WHERE event_num = crs_e_num AND '$username' = ev_uname") or
 			die(mysql_error());
 			
-		$numRows = mysql_num_rows($result);
+		$result2 = mysql_query("SELECT event.*, multi.* FROM event, multi WHERE event_num = multi_e_num AND '$username' = ev_uname") or
+			die(mysql_error());
+			
+		$result3 = mysql_query("SELECT event.*, single.* FROM event, single WHERE event_num = single_e_num AND '$username' = ev_uname") or
+			die(mysql_error());
+			
+		if(!$result && !$result2 && !$result3){
+			return false;
+		}else{
+			$array1 = array("courses" => @mysql_fetch_array($result),
+							"multi" => @mysql_fetch_array($result2),
+							"single" => @mysql_fetch_array($result3));
+
+			return $array1;
+		}
+	}
+	
+	//get event
+	public function getEvent($eventnum){
+		$typeC = mysql_query("SELECT * FROM course WHERE crs_e_num = '$eventnum'");
+		$typeM = mysql_query("SELECT * FROM multi WHERE multi_e_num = '$eventnum'");
+		$typeS = mysql_query("SELECT * FROM single WHERE single_e_num = '$eventnum'");
 		
-		if($numRows > 0){
-			return @mysql_fetch_array($result);
+		$numC = mysql_num_rows($typeC);
+		$numM = mysql_num_rows($typeM);
+		$numS = mysql_num_rows($typeS);
+
+		if($numC > 0){
+			$table = "course";
+			$fKey = "crs_e_num";
+		}else if($numM > 0){
+			$table = "multi";
+			$fKey = "multi_e_num";
+		}else if($numS > 0){
+			$table = "single";
+			$fKey = "single_e_num";
 		}else{
 			return false;
-		}	
+		}
+		
+		$result = mysql_query("SELECT event.*, $table.* FROM event, $table WHERE event_num = $fKey AND event_num = '$eventnum'") or
+			die(mysql_error());
+			
+		if(!$result){
+			return false;
+		}else{
+			return @mysql_fetch_array($result);
+		}
 	}
 	
 	//free time
