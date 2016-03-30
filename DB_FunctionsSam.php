@@ -199,6 +199,70 @@ class DB_Functions{
 		}												
 	}
 	
+	public function updateCrs($notes, $evnum, $s_date, $e_date, $crsnum, $credits, $e_time, $s_time, $namedept, $priority, $days, $location){
+		$result = mysql_query("UPDATE event SET notes = '$notes', s_date = '$s_date', e_time = '$e_time', s_time = '$s_time', 
+							name_dept = '$namedept', priority = $priority, days = '$days', location = '$location' WHERE event_num = $evnum");
+							
+		if(!$result){
+			return false;
+		}	
+	
+		$result = mysql_query("UPDATE course SET crs_num = $crsnum, credits = $credits, crs_e_date = '$e_date' WHERE crs_e_num = '$evnum'");
+		
+		if(!$result){
+			return false;
+		}
+		return true;
+	}
+	
+	public function updateMulti($notes, $s_date, $e_time, $s_time, $namedept, $priority, $days, $location, $evnum){
+		$result = mysql_query("UPDATE event SET notes = '$notes', s_date = '$s_date', e_time = '$e_time', s_time = '$s_time', 
+							name_dept = '$namedept', priority = $priority, days = '$days', location = '$location' WHERE event_num = $evnum");
+							
+		if(!$result){
+			return false;
+		}	
+		return true;
+	}
+	
+	public function updateSingle($day, $notes, $s_date, $e_time, $s_time, $namedept, $priority, $location, $crsToLink, $evnum){
+		$result = mysql_query("UPDATE event SET notes = '$notes', s_date = '$s_date', e_time = '$e_time', s_time = '$s_time', 
+							name_dept = '$namedept', priority = $priority, days = '$day',location = '$location' WHERE event_num = $evnum");
+							
+		if(!$result){
+			return false;
+		}	
+	
+		$result = mysql_query("UPDATE single SET single_e_date = '$s_date' WHERE single_e_num = '$evnum'");
+		
+		if(!$result){
+			return false;
+		}
+		return true;
+	}
+	
+	public function updateRemind($amount, $unit, $evnum){
+		$result = mysql_query("UPDATE reminder SET num = '$amount', units = '$unit' WHERE remind_e_num = '$evnum'");
+		
+		if(!$result)
+			return false;
+		
+		return true;
+		
+	}
+	
+	public function changePasswd($uname, $newWd){
+		$safePwd = crypt($newWd);
+		
+		
+		$result = mysql_query("UPDATE user SET passwd = '$safePwd' WHERE username = '$uname'");
+		
+		if(!$result)
+			return false;
+		
+		return true;
+	}
+	
 	//delete event
 	public function deleteEvent($eventnum){
 		$res = mysql_query("DELETE FROM event WHERE event_num = '$eventnum'");
@@ -246,11 +310,30 @@ class DB_Functions{
 		if(!$result && !$result2 && !$result3){
 			return false;
 		}else{
-			$array1 = array("courses" => @mysql_fetch_array($result),
-							"multi" => @mysql_fetch_array($result2),
-							"single" => @mysql_fetch_array($result3));
+			$array1 = array();
+			$array2 = array();
+			$array3 = array();
+			
+			while($row = mysql_fetch_row($result)){
+				array_push($array1, $row);
+			}
+			
+			while($row2 = mysql_fetch_row($result2)){
+				array_push($array2, $row2);
+			}
+			
+			while($row3 = mysql_fetch_row($result3)){
+				array_push($array3, $row3);
+			}
+			
+			$arr = [
+							"courses" => $array1,
+							"multi" => $array2,
+							"single" => $array3,
+							];
+			
 
-			return $array1;
+			return $arr;
 		}
 	}
 	
@@ -284,6 +367,22 @@ class DB_Functions{
 			return false;
 		}else{
 			return @mysql_fetch_array($result);
+		}
+	}
+	
+	public function getReminder($evnum){
+		$result = mysql_query("SELECT reminder.* FROM reminder, event WHERE event_num = remind_e_num AND remind_e_num = '$evnum'");
+		
+		if(!$result){
+			return false;
+		}else{
+			$remArr = array();
+			
+			while($row = mysql_fetch_row($result)){
+				array_push($remArr, $row);
+			}
+			
+			return $remArr;
 		}
 	}
 	

@@ -25,6 +25,7 @@
 		 if($user != false){
 			 //user found
 			 //echo json with success = 1
+			 
 			 $response["success"] = 1;
 			 $response["user"]["username"] = $user["username"];
 			 //$response["user"]["password"] = $user["encrypted_passwd"];	
@@ -274,7 +275,7 @@
 		 $u = $_POST['u'];
 		 
 		 $events = $db->getAllEvents($u);
-		 
+		 print_r($events);
 		 if($events){
 			 $response["success"] = 1;
 			 $response["evInfo"] = $events;
@@ -284,6 +285,106 @@
 			 $response["error_msg"] = "no events found";
 			 echo json_encode($response);
 		 } 
+	 }else if($tag == 'rems'){
+		 $eno = $_POST['eno'];
+		 
+		 $reminders = $db->getReminder($eno);
+		 
+		 if($reminders){
+			$response["success"] = 1;
+			$response["remInfo"] = $reminders;
+			echo json_encode($response);
+		 }else{
+			 $response["error"] = 24;
+			 $response["error_msg"] = "No reminders for this event";
+			 echo json_encode($response);
+		 }
+	 }else if($tag == 'chng'){
+		 $unm = $_POST['unm'];
+		 $new = $_POST['new'];
+		 
+		 $prestochango = $db->changePasswd($unm, $new);
+		 
+		 if($prestochango){
+			$response["success"] = 1;
+			$response["message"] = "password changed";
+			echo json_encode($response);
+		 }else{
+			 $response["error"] = 29;
+			 $response["error_msg"] = "couldnt change password";
+			 echo json_encode($response);
+		 }
+	 }else if($tag == 'upcrs'){
+		 $notes = $_POST['notes'];
+		 $sdate = $_POST['sdate'];
+		 $etime = $_POST['etime'];
+		 $stime = $_POST['stime'];
+		 $namedept = $_POST['namedept'];
+		 $priority = $_POST['priority'];
+		 $location = $_POST['location'];
+		 $evn = $_POST['evn'];
+		 $days = $_POST['days'];
+		 $edate = $_POST['edate'];
+		 $creds = $_POST['creds'];
+		 $crsnum = $_POST['crsnum'];
+		 
+		 $upCrs = $db->updateCrs($notes, $evn, $sdate, $edate, $crsnum, $creds, $etime, $stime, $namedept, $priority, $days, $location);
+		 
+		 if($upCrs){
+			$response["success"] = 1;
+			echo json_encode($response);
+		 }else{
+			 $response["error"] = 122;
+			 $response["error_msg"] = "couldnt alter event";
+			 echo json_encode($response);
+		 }
+	 }else if($tag == 'upmul'){
+		 $notes = $_POST['notes'];
+		 $sdate = $_POST['sdate'];
+		 $etime = $_POST['etime'];
+		 $stime = $_POST['stime'];
+		 $namedept = $_POST['namedept'];
+		 $priority = $_POST['priority'];
+		 $location = $_POST['location'];
+		 $evn = $_POST['evn'];
+		 $days = $_POST['days'];
+		 
+		 $upMult = $db->updateMulti($notes, $sdate, $etime, $stime, $namedept, $priority, $days, $location, $evn);
+		 
+		 if($upMult){
+			$response["success"] = 1;
+			echo json_encode($response);
+		 }else{
+			 $response["error"] = 123;
+			 $response["error_msg"] = "couldnt alter event";
+			 echo json_encode($response);
+		 }
+		 
+	 }else if($tag == 'upsing'){
+		 $notes = $_POST['notes'];
+		 $sdate = $_POST['sdate'];
+		 $etime = $_POST['etime'];
+		 $stime = $_POST['stime'];
+		 $namedept = $_POST['namedept'];
+		 $priority = $_POST['priority'];
+		 $location = $_POST['location'];
+		 $evn = $_POST['evn'];
+		 $crstl = $_POST['crstl'];
+		 $d = $_POST['d'];
+		 
+		 $upSin = $db->updateSingle($d, $notes, $sdate, $etime, $stime, $namedept, $priority, $location, $crstl, $evn);
+		 
+		 if($upSin){
+			$response["success"] = 1;
+			echo json_encode($response);
+		 }else{
+			 $response["error"] = 124;
+			 $response["error_msg"] = "couldnt alter event";
+			 echo json_encode($response);
+		 }
+		 
+	// }//else if($tag == ){
+		 
 	 }else if($tag == 'cur'){
 		 $uname = $_POST['uname'];
 		 $dt = $_POST['dt'];
