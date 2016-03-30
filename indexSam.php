@@ -299,6 +299,20 @@
 			 $response["error_msg"] = "No reminders for this event";
 			 echo json_encode($response);
 		 }
+	 }else if($tag == 'allrem'){
+		 $unam = $_POST['unam'];
+		 
+		 $rems = $db->getReminders($unam);
+		 
+		 if($rems){
+			 $response["success"] = 1;
+			 $response["remInfo"] = $rems;
+			 echo json_encode($response);
+		 }else{
+			 $response["error"] = 234;
+			 $response["error_msg"] = "No reminders";
+			 echo json_encode($response);
+		 }
 	 }else if($tag == 'chng'){
 		 $unm = $_POST['unm'];
 		 $new = $_POST['new'];
