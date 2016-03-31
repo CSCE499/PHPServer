@@ -81,16 +81,21 @@ class DB_Functions{
 	}
 	
 	//store course
-	public function createCourse($notes, $s_date, $e_date, $crsnum, $credits, $e_time, $s_time, $namedept, $priority, $days, $location, $evuname){
+	public function createCourse($notes, $s_date, $e_date, $crsnum, $credits, $e_time, $s_time, $namedept, $priority, $days, $location, $evuname, $crsToLink){
 		//insert appropriate data into event table
+		
+		if($days == 'find')
+			$days = $this->getDayOfWk($s_date);
+		
 		$res = mysql_query("INSERT INTO event(notes, s_date, e_time, s_time, name_dept, priority, location, ev_uname, days)
 							VALUES('$notes', '$s_date', '$e_time', '$s_time', '$namedept', '$priority', '$location', '$evuname', '$days')");
+		
 		
 		//if insert fails, return false
 		if($res == false){
 			return false;
 		}						
-		
+
 		//get event number of last created event 
 		$lastEventN = mysql_query("SELECT event_num FROM event ORDER BY event_num DESC  LIMIT 1") or die(mysql_error());
 		
@@ -104,15 +109,20 @@ class DB_Functions{
 		$lastn = $lastEvento['event_num'];
 		
 		//run insert on the course table to complete the course event
-		$res2 = mysql_query("INSERT INTO course VALUES('$credits','$e_date', '$crsnum', '$lastn')");
-		
+		if($crsToLink == 'null'){
+			$res2 = mysql_query("INSERT INTO course VALUES('$credits','$e_date', '$crsnum', '$lastn', null)");
+		}
+		else{
+			$res2 = mysql_query("INSERT INTO course VALUES('$credits','$e_date', '$crsnum', '$lastn', '$crsToLink')");
+		}
+
 		//if creation of course event was unsuccessful
 		if(!$res2){
 			//delete event row from event table inserted earlier in function
 			mysql_query("DELETE FROM event WHERE event_num = '$lastn'");  //delete event created earlier in function
 			
 			return false;  //return not not not not not not not not not not not not not not not not not not not not not not not not not true
-		}else{   
+		}else{ 
 				 //if creation of course event was not unsuccessful and the process was in fact completed, therefore and thusly rendering 
 				 //the variable res2 not false, as it would have been if it were not true, but on the other hand not not true, which means 
 				 //that the false version of the variable is false, making it a falsity.  So if the true variable res2 was false, it would not 
@@ -129,7 +139,7 @@ class DB_Functions{
 			$res2 = mysql_query("SELECT event_num, name_dept FROM event, course WHERE event_num = crs_e_num AND event_num = '$lastn'") or
 			die(mysql_error());
 			
-			return @mysql_fetch_array($res2);  //return selected proff data
+			return @mysql_fetch_array($res2);  //return selected proof data
 		}
 	}
 	
@@ -175,8 +185,31 @@ class DB_Functions{
 		}
 	}
 	
+	//get day of week for specific date
+	public function getDayOfWk($date){
+		$dt = date('w', strtotime($date));
+		
+		if($dt == 0){
+			$dt = "S";  //sunday
+		}else if($dt == 1){
+			$dt = "M";  //monday
+		}else if($dt == 2){
+			$dt = "T";  //tuesday
+		}else if($dt == 3){
+			$dt = "W";  //wednesday
+		}else if($dt == 4){
+			$dt = "R";  //thursday
+		}else if($dt == 5){
+			$dt = "F";  //friday
+		}else{
+			$dt = "A";  //saturday
+		}
+		
+		return $dt;
+	}
+	
 	//store single event
-	public function createOther($notes, $s_date, $e_time, $s_time, $namedept, $priority, $location, $evuname, $crsToLink){
+	public function createOther($notes, $s_date, $e_time, $s_time, $namedept, $priority, $location, $evuname){
 		$dy1 = date('w', strtotime($s_date));   //get day of the week (represented by integer 0(sunday) - 6(saturday))
 		
 		//get day of the week of the event with start (and end) date s_date
@@ -218,13 +251,13 @@ class DB_Functions{
 		$lastnum = $lastEventNo['event_num'];
 
 		//run necessary inserts for the single table depending on crsToLink (if its a study session or not)
-		if($crsToLink == 'null'){
+		/*if($crsToLink == 'null'){
 			$result2 = mysql_query("INSERT INTO single(single_e_date, single_e_num, course_eventnum)
 								VALUES('$s_date', '$lastnum', null)");   //foreign key null if not a study session
-		}else{
-			$result2 = mysql_query("INSERT INTO single(single_e_date, single_e_num, course_eventnum)
-								VALUES('$s_date', '$lastnum', '$crsToLink')");  //set fk to crsToLink if it is a study session
-		}
+		}else{*/
+			$result2 = mysql_query("INSERT INTO single(single_e_date, single_e_num)
+								VALUES('$s_date', '$lastnum')");  //set fk to crsToLink if it is a study session
+		//}
 		
 		//if event successfully created 
 		if($result2){
@@ -552,98 +585,288 @@ class DB_Functions{
 	public function getCurrentCourses($username, $currentDt){
 		//query to get current courses taken by the user specified by the username passed into the function
 		$result = mysql_query("SELECT * FROM event, course WHERE (CURDATE() BETWEEN s_date AND crs_e_date) AND (event_num = crs_e_num) 
-								AND (ev_uname = '$username')") or die(mysql_error());
+								AND (ev_uname = '$username') AND parent_crs IS NULL") or die(mysql_error());
 		
 		//if no current courses found
 		if(!$result){
 			return false;   //return false 
 		}else{   //if some current courses found
-			$crsArr = array();  //array for to hold courses in
+			$crsAr = array();  //array for to hold courses in
 			
 			//loop throuhg result set, appending to array along the way
 			while($row = mysql_fetch_row($result)){
-				array_push($crsArr, $row);
+				array_push($crsAr, $row);
 			}
 			
-			return $crsArr;  //return array of said courses
+			return $crsAr;  //return array of said courses
 		}
 	}
 	
-	//schedule study sessions (in progress)
-	public function scheduleStudy($username, $currentDate){
-		$crsInfo = $this->getCurrentCourses($username, $currentDate);
+	//comments coming soon!  wait in grueling antici..........................................pation
+	public function noteLen($eve_no){
+		$result = mysql_query("SELECT notes FROM event, course WHERE crs_e_num = event_num AND (event_num = '$eve_no' OR '$eve_no' = parent_crs)");
 		
-		//convert times to seconds
-		$eH = idate('H', strtotime($crsInfo['e_time']));  
-		$sH = idate('H', strtotime($crsInfo['s_time']));
-		$sM = idate('i', strtotime($crsInfo['s_time']));
-		$eM = idate('i', strtotime($crsInfo['e_time']));
+		if(!$result){
+			return 0;
+		}else{
+			$noteAr = array();
+			$length = 0;
+			$sz = 0;
+			
+			while($row = mysql_fetch_row($result)){
+				$sz = array_push($noteAr, $row);
+			}
+			
+			for($in = 0; $in < $sz; $in++){
+				$length = $length + strlen($noteAr[$in][0]);
+			}
+			
+			return $length;
+		}
+	}
+	
+	//Holy Crap, this is a gnarly looking function if i ever saw one
+	//this terrible mess checks priority for 2 events(called class1 & class2, but i'm too lazy to change it)
+	//returns true if class one has priority and false if class2 has it
+	//if two events are still tied after all tests(highly unlikely, border INCONCEIVABLE!) it doesnt really matter all that much since the events
+	//are pretty equal; return true in this case for class1, just 'cause
+	public function tiebreaker($class1, $class2){
+		//if two events not the same type of event
+		if(sizeof($class1) != sizeof($class2)){
+			if(sizeof($class1) == 15){   //if class1 a course
+				return true;
+			}else if(sizeof($class1) == 11 && sizeof($class2) == 12){  //class1 a multi day repeating event and class2 a single
+				return true;
+			}else{   //other cases class2 has priority
+				return false;
+			}
+		}
+		
+		//terrible awful quagmire to test priority for the same type of event
+		if($class1[5] > $class2[5]){   //test priority attribute  that wasnt too bad
+			return true;
+		}else if($class1[5] < $class2[5]){   
+			return false;
+		}else{  //uh oh, priorities were equal
+			if(sizeof($class1) == 15){     //gotta know if class1 & class2 are course events
+				if($class1[12] > $class2[12]){   //test course numbers, highest one wins
+					return true;
+				}else if($class1[12] < $class2[12]){
+					return false;
+				}else{   //oh god, the course numbers were the same, no freakin way
+					if($this->noteLen($class1[7]) > $this->noteLen($class2[7])){  //test amount of notes taken, more notes == more important
+						return true;
+					}else if($this->noteLen($class1[7]) < $this->noteLen($class2[7])){
+						return false;
+					}else{   //they're equal again???  screw it, just return something
+						return true;
+					}	
+				}
+			}else{   //not a course, no course number.  Just test notes.  see flippant comments above 
+				if($this->noteLen($class1[7]) > $this->noteLen($class2[7])){
+					return true;
+				}else if($this->noteLen($class1[7]) < $this->noteLen($class2[7])){
+						return false;
+				}else{
+					return true;
+				}
+			}
+		}
+	}
+	
+	//takes an array of courses and orders them based on priority
+	public function orderCourses($classes){
+		//$classes = $this->getCurrentCourses($u, $c);           for testing
+		
+		$ordered = array();   //ordered array
+		
+		$ind = 0;  //index of course getting tested for highest priority
+		//$ind2 = $ind + 1;
+		
+		
+		//nested mismatched loops to test priority & order courses; goes until original array is empty
+		while(sizeof($classes) > 0){
+			$boo = true;   //boolean for something.  i'm getting tired.  update tomorrow
+			for($ind2 = $ind + 1; $ind2 < sizeof($classes) && $boo == true; $ind2++){  //check against other courses for higher priority
+				$boo = $this->tiebreaker($classes[$ind], $classes[$ind2]);  //call tiebreaker function
+				//$ind2++;
+			}
+			
+			//if highest remaining prioirty is found
+			if($boo || $ind == sizeof($classes) - 1){    
+				array_push($ordered, $classes[$ind]);  //push highest remaining prioirity into new ordered array
+				unset($classes[$ind]);   //remove highest priority for original array
+				$classes = array_values($classes);   //correct array indexes
+				$ind = 0;   //set ind back to zero
+			}else{   //this course did not have highest priority, check another one
+				$ind++;
+			}
+		}
+		
+		//print_r($ordered);
+		return $ordered;   //return ordered course array
+	}
+	
+	//schedule study sessions (making progress; still have to loop thru courses and improve algoritm)
+	public function scheduleStudy($username, $currentDate){
+		$crsInfo = $this->getCurrentCourses($username, $currentDate);  //get user's current courses
+		
+		//if no current courses, can't schedule study time
+		if(!$crsInfo)
+			return false;
+		
+		$crsInfo = $this->orderCourses($crsInfo);  //order current courses based on priority considerations
+	
+		//format times in minutes & hrs         first index will eventually be a loop variable after course loop is added
+		$eH = idate('H', strtotime($crsInfo[0][2]));  
+		$sH = idate('H', strtotime($crsInfo[0][3]));
+		$sM = idate('i', strtotime($crsInfo[0][3]));
+		$eM = idate('i', strtotime($crsInfo[0][2]));
 		
 		//calculate study time (2 hr rule)
 		$studyTime = ((($eH - $sH)* 60) + ($eM - $sM)) * 2;
 
 		//add study time based on course number
-		if($crsInfo['crs_num'] >= 300 && $crsInfo['crs_num'] < 400){
+		if($crsInfo[0][12] >= 300 && $crsInfo[0][12] < 400){
 			$studyTime = $studyTime + 30;
-		}else if($crsInfo['crs_num'] >= 400){
+		}else if($crsInfo[0][12] >= 400){
 			$studyTime = $studyTime + 60;
 		}else{}
 		
 		//calculate number of study sessions for class
 		$sessions = $studyTime/30;
 		$sessions = round($sessions);
-		echo $studyTime;
-		echo $sessions;
+		//echo $studyTime;           some prints to help out a poor old programmer like me
+		//echo $sessions;
 		
 		//new variable for days
-		$days = (string)$crsInfo['days'];
+		$days = (string)$crsInfo[0][9];
 		$numDys = strlen($days);
+		//echo $numDys;
 		//course number
-		$number = (string)$crsInfo['crs_num'];
+		$number = (string)$crsInfo[0][12];
 		//current date to php date type
 		$curdate = new DateTime($currentDate);
+		//$curdateCopy = new DateTime($currentDate);
 		
-		//for($i = 0; i < $numDys; $i++){
-			//echo "working\n\n\n";
+		//for($i = 0; $i < $numDys; $i++){
 			
-			//add days to current date depending on day of week in loop (it is assumed the function will start scheduling on Mondays)
-			if($days[0] == 'M'){
+			//thought i'd add a index of indexes (he he) to remind me instead of going back to phpmyadmin every 2 minutes
+			/*    indices for the current course information:     
+			[0]  notes
+			[1]  start date 
+			[2]  end time 
+			[3]  start time 
+			[4]  name_dept
+			[5]  priority
+			[6]  location
+			[7]  event number
+			[8]  username
+			[9]  days of week
+			[10] credits
+			[11] end date
+			[12] course number
+			[13] foreign key to course number
+			[14] linked course (null if not a study session)
+			*/
+			
+			//some stuff that may or may not make it past the weekend. not sure yet, that's why it's still here
+			/*//add days to current date depending on day of week in loop (it is assumed the function will start scheduling on Mondays)
+			if($days[$i] == 'M'){    //if monday
 				$curdate->add(new DateInterval('P0D'));
-			}else if($days[0] == 'T'){
+			}else if($days[$i] == 'T'){  //if tuesday
 				$curdate->add(new DateInterval('P1D'));
-			}else if($days[0] == 'W'){
+			}else if($days[$i] == 'W'){   //if wednesday
 				$curdate->add(new DateInterval('P2D'));
-			}else if($days[0] == 'R'){
+			}else if($days[$i] == 'R'){   //if thursday
 				$curdate->add(new DateInterval('P3D'));
-			}else if($days[0] == 'F'){
+			}else if($days[$i] == 'F'){   //if friday
 				$curdate->add(new DateInterval('P4D'));
-			}else if($days[0] == 'A'){
+			}else if($days[$i] == 'A'){   //if saturday
 				$curdate->add(new DateInterval('P5D'));
-			}else{
+			}else{                        //if sunday
 				$curdate->add(new DateInterval('P6D'));
-			}
-			
-			echo $curdate->format('Y-m-d');
+			}*/
 			
 			//find free times 
-			$freeTimes = $this->findFree(17, 0, ($sessions * 30 * 2), $curdate->format('Y-m-d'));
-			//print_r($freeTimes);
+			$freeTimes = $this->findFree(15, 0, ($sessions * 30 * 3), $curdate->format('Y-m-d'));
 			
-			//schedule study times (as single events for now, might switch to multi events if single events yield too many events)
-			if(sizeof($freeTimes) >= $sessions * 2){
-				//for($x = 0; $x < $sessions; $x++){
-					$sT = gmdate('H:i:s', $freeTimes[0 * 2]);         //format start time 
-					$eT = gmdate('H:i:s', $freeTimes[0 * 2] + 1800);  //format end time
-					$this->createOther('', $curdate->format('Y-m-d'), $eT, $sT, "study " . $number, $crsInfo['priority'], $crsInfo['location'], $username, $crsInfo['event_num']);
-				//}
-			}else{
-				//for($x = 0; $x < $sessions; $x++){
-					$sT = gmdate('H:i:s', $freeTimes[0]);            //format start time
-					$eT = gmdate('H:i:s', $freeTimes[0] + 1800);     //format end time
-					$this->createOther('', $curdate->format('Y-m-d'), $eT, $sT, "study " . $number, $crsInfo['priority'], $crsInfo['location'], $username, $crsinfo['event_num']);
-				//}
+			//set up a datetime for 2 days after monday(wednesday, to use the technical term) and look for free time there
+			$curdatePlusOne = new DateTime($currentDate);
+			$curdatePlusOne->add(new DateInterval('P2D'));
+			$freeTimes2 = $this->findFree(15,0, ($sessions * 30 * 3), $curdatePlusOne->format('Y-m-d'));
+			//do this crap ^^^ again except for friday.  at this point the method will schedule study times on the same day as classes
+			$curdatePlus2 = new DateTime($currentDate);
+			$curdatePlus2->add(new DateInterval('P4D'));
+			$freeTimes3 = $this->findFree(15,0, ($sessions * 30 * 3), $curdatePlus2->format('Y-m-d'));
+			
+			//more diagnostic prints
+			//echo $sessions;
+			//print_r($freeTimes);
+			//print_r($freeTimes2);
+			//print_r($freeTimes3);
+			
+			$size = 0;  //size of the array of start times to schedule study sessions
+			$schedTimes = array();   //the array of start times to schedule study sessions
+			
+			//compare free times on all days to see if any are the same, and can thus be used on multiple days for studying
+			if(sizeof($freeTimes) >= $sessions * 2){   //nasty nested stuff
+				for($z = 0; $z < sizeof($freeTimes) && $size < $sessions; $z++){  //if scheduled times are not filled up
+					if(in_array($freeTimes[$z * 2], $freeTimes2) && in_array($freeTimes[$z*2], $freeTimes3))  //check for common times, leave time for snack breaks
+						$size = array_push($schedTimes, $freeTimes[$z*2]); //if time in common, don't just stand there, put in the array!
+					
+				}
 			}
+			
+			//HOLY CRAP, LOOK OUT BEHIND YOU!
+			
+			//get the day of the week for the dates tested
+			$dow1 = $this->getDayOfWk($curdatePlusOne->format('Y-m-d'));
+			$dow2 = $this->getDayOfWk($curdatePlus2->format('Y-m-d'));
+			
+			//concatenate string for days attribute of study sessions
+			$daystring = "M" . $dow1 . $dow2;
+			//echo $daystring;
+			
+			//print_r($schedTimes);
+			
+			//schedule study times (as single events for now, might switch to multi events if single events yield too many events) <--- yep
+			for($x = 0; $x < $size; $x++){
+				$sT = gmdate('H:i:s', $schedTimes[$x]);         //format start time 
+				$eT = gmdate('H:i:s', $schedTimes[$x] + 1800);  //format end time
+				$endDate = new DateTime($currentDate);          //end date(end of week)
+				$endDate->add(new DateInterval('P6D'));  //end date = end of week
+				//changed to course events.  every study session will have a "parent" course to which it is linked
+				$this->createCourse('', $curdate->format('Y-m-d'), $endDate->format('Y-m-d'),0,0,$eT, $sT, "study " . $number, $crsInfo[0][5], $daystring, $crsInfo[0][6], $username, $crsInfo[0][13]);
+			    //                notes  start date             end date            disregard  start & end time   title       priority      days of week  location         user       parent course
+			}
+			//more unnecessary stuff
+			//$curdate = new DateTime($currentDate);
+			//echo $curdate->format('Y-m-d');
 		//}
+		
+		return true;
+		
+		/*I commend you if you're still paying attention.  That's a legitimate crapton of code and dumb comments to read through.  To reward you
+		  for your patience and bravery, here's a joke: 
+		  
+		  A young Programmer and his Project Manager board a train headed through the mountains on its way to Wichita. They can find no place 
+		  to sit except for two seats right across the aisle from a young woman and her grandmother. After a while, it is obvious that the young 
+		  woman and the young programmer are interested in each other, because they are giving each other looks. Soon the train passes into a tunnel 
+		  and it is pitch black. There is a sound of a kiss followed by the sound of a slap.
+		  
+		  When the train emerges from the tunnel, the four sit there without saying a word. The grandmother is thinking to herself, 
+		  “It was very brash for that young man to kiss my granddaughter, but I’m glad she slapped him.”
+	     
+   		  The Project manager is sitting there thinking, “I didn’t know the young tech was brave enough to kiss the girl, but I sure wish she 
+		  hadn’t missed him when she slapped me!”
+	      
+		  The young woman was sitting and thinking, “I’m glad the guy kissed me, but I wish my grandmother had not slapped him!”
+          
+		  The young programmer sat there with a satisfied smile on his face. He thought to himself, “Life is good. How often does a guy have 
+		  the chance to kiss a beautiful girl and slap his Project manager all at the same time!”
+
+		 */
 	}
 }
 ?>

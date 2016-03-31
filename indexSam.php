@@ -84,9 +84,8 @@
 		 $priority = $_POST['priority'];
 		 $location = $_POST['location'];
 		 $evuname = $_POST['evuname'];
-		 $crstolink = $_POST["crstolink"];
 		 
-		 $single = $db->createOther($notes, $sdate, $etime, $stime, $namedept, $priority, $location, $evuname, $crstolink);
+		 $single = $db->createOther($notes, $sdate, $etime, $stime, $namedept, $priority, $location, $evuname);
 		 
 		 if($single != false){
 			$response["success"] = 1;
@@ -193,12 +192,13 @@
 		 $priority = $_POST['priority'];
 		 $location = $_POST['location'];
 		 $evuname = $_POST['evuname'];
-		 $days = $_POST['days'];
 		 $edate = $_POST['edate'];
 		 $creds = $_POST['creds'];
 		 $crsnum = $_POST['crsnum'];
+		 $crstl = $_POST['crstl'];
+		 $days = $_POST['days'];
 		 
-		 $course = $db->createCourse($notes, $sdate, $edate, $crsnum, $creds, $etime, $stime, $namedept, $priority, $days, $location, $evuname);
+		 $course = $db->createCourse($notes, $sdate, $edate, $crsnum, $creds, $etime, $stime, $namedept, $priority, $days, $location, $evuname, $crstl);
 		 
 		 if($course){
 			$response["success"] = 1;
@@ -407,13 +407,31 @@
 		 
 		 if($curCourses){
 			 $response["success"] = 1;
-			 $response["crses"] = $curCourses[0];
+			 $response["crses"] = $curCourses;
 			 echo json_encode($response);
 		 }else{
 			 $response["error"] = 10;
 			 $response["error_msg"] = "No current courses";
 			 echo json_encode($response);
 		 }
+	 }else if($tag == 'order'){
+		 $u = $_POST['u'];
+		 $c = $_POST['c'];
+		 
+		 $ord = $db->orderCourses($u, $c);
+		 
+		 $response["success"] = 1;
+		 $response["ordered"] = $ord;
+		 echo json_encode($response);
+		 
+	 }else if($tag == 'note'){
+		 $eveno = $_POST['eveno'];
+		 
+		 $noteLength = $db->noteLen($eveno);
+		 
+		 $response["success"] = 1;
+		 $response["notelen"] = $noteLength;
+		 echo json_encode($response);
 	 }else if($tag == 'calcu'){
 		 $uname = $_POST['uname'];
 		 $today = $_POST['today'];
