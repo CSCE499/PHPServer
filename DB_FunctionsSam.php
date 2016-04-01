@@ -522,10 +522,13 @@ class DB_Functions{
 		}
 	}
 	
-	//free time
-	public function findFree($hr, $min, $range, $d){
+	//free time     ha ha, fixed it
+	public function findFree($hr, $min, $range, $d, $durHr, $durMn, $usr){
 		//convert to seconds
 		$seconds = ($hr * 3600) + ($min * 60);
+		
+		$secToEnd = ($durHr * 3600) + ($durMn * 60);
+		
 		$end = $seconds + ($range * 60);
 		
 		//create array, get day of the week of current date
@@ -552,26 +555,30 @@ class DB_Functions{
 		
 		//check if any events overlap
 		while($seconds < $end){
-			$result = mysql_query("SELECT * FROM event, course WHERE 
-								(SEC_TO_TIME('$seconds') BETWEEN s_time AND e_time)
-				`		OR (SEC_TO_TIME('$seconds') < s_time AND ADDTIME((SEC_TO_TIME('$seconds')), '00:30:00') >= s_time)
-				AND (STR_TO_DATE('$date', '%Y%m%d') BETWEEN s_date AND crs_e_date) AND (days like '$dy') AND (event_num = crs_e_num)");
+			$result = mysql_query("SELECT distinct * FROM event, course WHERE 
+				( (s_time BETWEEN SEC_TO_TIME('$seconds') AND ADDTIME(SEC_TO_TIME('$seconds'), SEC_TO_TIME('$secToEnd')) ) 
+				OR (s_time < SEC_TO_TIME('$seconds') AND e_time > SEC_TO_TIME('$seconds') ) )
+				AND (DATE('$date') BETWEEN s_date AND crs_e_date) AND (days like '$dy') AND (event_num = crs_e_num) AND ev_uname = '$usr'");
 				
-			$result2 = mysql_query("SELECT * FROM event, single WHERE 
-								(SEC_TO_TIME('$seconds') BETWEEN s_time AND e_time)
-				`		OR (SEC_TO_TIME('$seconds') < s_time AND ADDTIME((SEC_TO_TIME('$seconds')), '00:30:00') >= s_time)
-				AND (STR_TO_DATE('$date', '%Y%m%d') = s_date) AND (event_num = single_e_num)");
+			$result2 = mysql_query("SELECT distinct * FROM event, single WHERE 
+					( (s_time BETWEEN SEC_TO_TIME('$seconds') AND ADDTIME(SEC_TO_TIME('$seconds'), SEC_TO_TIME('$secToEnd')) ) 
+				OR (s_time < SEC_TO_TIME('$seconds') AND e_time > SEC_TO_TIME('$seconds') ) )
+				AND (DATE('$date') = s_date) AND (event_num = single_e_num) AND ev_uname = '$usr'");
 				
-			$result3 = mysql_query("SELECT * FROM event, multi WHERE 
-								(SEC_TO_TIME('$seconds') BETWEEN s_time AND e_time)
-				`		OR (SEC_TO_TIME('$seconds') < s_time AND ADDTIME((SEC_TO_TIME('$seconds')), '00:30:00') >= s_time)
-				AND (STR_TO_DATE('$date', '%Y%m%d') >= s_date) AND (days like '$dy') AND (event_num = single_e_num)");
+			$result3 = mysql_query("SELECT distinct * FROM event, multi WHERE 
+					( (s_time BETWEEN SEC_TO_TIME('$seconds') AND ADDTIME(SEC_TO_TIME('$seconds'), SEC_TO_TIME('$secToEnd')) ) 
+				OR (s_time < SEC_TO_TIME('$seconds') AND e_time > SEC_TO_TIME('$seconds') ) )
+				AND (DATE('$date') >= s_date) AND (days like '$dy') AND (event_num = multi_e_num) AND ev_uname = '$usr'");
+				
+			if(!$result || !$result2 || !$result3){
+				echo "still problem";
+			}else{
+				//if no events found
+				if(mysql_num_rows($result) == 0 && mysql_num_rows($result2) == 0 && mysql_num_rows($result3) == 0)
+					array_push($times, $seconds);
+			}
 			
-			//if no events found
-			if(!$result && !$result2 && !$result3)
-				array_push($times, $seconds);
-			
-			$seconds = $seconds + 1800;		//look 30 minutes later
+			$seconds = $seconds + $secToEnd;		//look 30 minutes later
 		}
 		
 		//if no times found 
@@ -717,132 +724,138 @@ class DB_Functions{
 		
 		$crsInfo = $this->orderCourses($crsInfo);  //order current courses based on priority considerations
 	
-		//format times in minutes & hrs         first index will eventually be a loop variable after course loop is added
-		$eH = idate('H', strtotime($crsInfo[0][2]));  
-		$sH = idate('H', strtotime($crsInfo[0][3]));
-		$sM = idate('i', strtotime($crsInfo[0][3]));
-		$eM = idate('i', strtotime($crsInfo[0][2]));
-		
-		//calculate study time (2 hr rule)
-		$studyTime = ((($eH - $sH)* 60) + ($eM - $sM)) * 2;
+		//for($i = 0; $i < sizeof($crsInfo); $i++){
+			//format times in minutes & hrs         first index will eventually be a loop variable after course loop is added
+			$eH = idate('H', strtotime($crsInfo[0][2]));  
+			$sH = idate('H', strtotime($crsInfo[0][3]));
+			$sM = idate('i', strtotime($crsInfo[0][3]));
+			$eM = idate('i', strtotime($crsInfo[0][2]));
+			
+			//calculate study time (2 hr rule)
+			$studyTime = ((($eH - $sH)* 60) + ($eM - $sM)) * 2;
 
-		//add study time based on course number
-		if($crsInfo[0][12] >= 300 && $crsInfo[0][12] < 400){
-			$studyTime = $studyTime + 30;
-		}else if($crsInfo[0][12] >= 400){
-			$studyTime = $studyTime + 60;
-		}else{}
+			//add study time based on course number
+			if($crsInfo[0][12] >= 300 && $crsInfo[0][12] < 400){
+				$studyTime = $studyTime + 30;
+			}else if($crsInfo[0][12] >= 400){
+				$studyTime = $studyTime + 60;
+			}else{}
+			
+			//calculate number of study sessions for class
+			$sessions = $studyTime/30;
+			$sessions = round($sessions);
+			
+			//new variable for days
+			$days = (string)$crsInfo[0][9];
+			$numDys = strlen($days);
+			//echo $numDys;
+			//course number
+			$number = (string)$crsInfo[0][12];
+			//current date to php date type
+			$curdate = new DateTime($currentDate);
+			//$curdateCopy = new DateTime($currentDate);
+				
+				//thought i'd add a index of indexes (he he) to remind me instead of going back to phpmyadmin every 2 minutes
+				/*    indices for the current course information:     
+				[0]  notes
+				[1]  start date 
+				[2]  end time 
+				[3]  start time 
+				[4]  name_dept
+				[5]  priority
+				[6]  location
+				[7]  event number
+				[8]  username
+				[9]  days of week
+				[10] credits
+				[11] end date
+				[12] course number
+				[13] foreign key to course number
+				[14] linked course (null if not a study session)
+				*/
 		
-		//calculate number of study sessions for class
-		$sessions = $studyTime/30;
-		$sessions = round($sessions);
-		//echo $studyTime;           some prints to help out a poor old programmer like me
-		//echo $sessions;
-		
-		//new variable for days
-		$days = (string)$crsInfo[0][9];
-		$numDys = strlen($days);
-		//echo $numDys;
-		//course number
-		$number = (string)$crsInfo[0][12];
-		//current date to php date type
-		$curdate = new DateTime($currentDate);
-		//$curdateCopy = new DateTime($currentDate);
-		
-		//for($i = 0; $i < $numDys; $i++){
-			
-			//thought i'd add a index of indexes (he he) to remind me instead of going back to phpmyadmin every 2 minutes
-			/*    indices for the current course information:     
-			[0]  notes
-			[1]  start date 
-			[2]  end time 
-			[3]  start time 
-			[4]  name_dept
-			[5]  priority
-			[6]  location
-			[7]  event number
-			[8]  username
-			[9]  days of week
-			[10] credits
-			[11] end date
-			[12] course number
-			[13] foreign key to course number
-			[14] linked course (null if not a study session)
-			*/
-			
-			//some stuff that may or may not make it past the weekend. not sure yet, that's why it's still here
-			/*//add days to current date depending on day of week in loop (it is assumed the function will start scheduling on Mondays)
-			if($days[$i] == 'M'){    //if monday
-				$curdate->add(new DateInterval('P0D'));
-			}else if($days[$i] == 'T'){  //if tuesday
-				$curdate->add(new DateInterval('P1D'));
-			}else if($days[$i] == 'W'){   //if wednesday
-				$curdate->add(new DateInterval('P2D'));
-			}else if($days[$i] == 'R'){   //if thursday
-				$curdate->add(new DateInterval('P3D'));
-			}else if($days[$i] == 'F'){   //if friday
-				$curdate->add(new DateInterval('P4D'));
-			}else if($days[$i] == 'A'){   //if saturday
-				$curdate->add(new DateInterval('P5D'));
-			}else{                        //if sunday
-				$curdate->add(new DateInterval('P6D'));
-			}*/
-			
-			//find free times 
-			$freeTimes = $this->findFree(15, 0, ($sessions * 30 * 3), $curdate->format('Y-m-d'));
-			
-			//set up a datetime for 2 days after monday(wednesday, to use the technical term) and look for free time there
-			$curdatePlusOne = new DateTime($currentDate);
-			$curdatePlusOne->add(new DateInterval('P2D'));
-			$freeTimes2 = $this->findFree(15,0, ($sessions * 30 * 3), $curdatePlusOne->format('Y-m-d'));
-			//do this crap ^^^ again except for friday.  at this point the method will schedule study times on the same day as classes
-			$curdatePlus2 = new DateTime($currentDate);
-			$curdatePlus2->add(new DateInterval('P4D'));
-			$freeTimes3 = $this->findFree(15,0, ($sessions * 30 * 3), $curdatePlus2->format('Y-m-d'));
-			
-			//more diagnostic prints
-			//echo $sessions;
-			//print_r($freeTimes);
-			//print_r($freeTimes2);
-			//print_r($freeTimes3);
-			
-			$size = 0;  //size of the array of start times to schedule study sessions
-			$schedTimes = array();   //the array of start times to schedule study sessions
-			
-			//compare free times on all days to see if any are the same, and can thus be used on multiple days for studying
-			if(sizeof($freeTimes) >= $sessions * 2){   //nasty nested stuff
-				for($z = 0; $z < sizeof($freeTimes) && $size < $sessions; $z++){  //if scheduled times are not filled up
-					if(in_array($freeTimes[$z * 2], $freeTimes2) && in_array($freeTimes[$z*2], $freeTimes3))  //check for common times, leave time for snack breaks
-						$size = array_push($schedTimes, $freeTimes[$z*2]); //if time in common, don't just stand there, put in the array!
+				$freeTimes = array();
+				$curdateCopy = new DateTime($currentDate);
+				$daystring = "";
+				
+				for($indecks = 0; $indecks < $numDys; $indecks++){
+					if($days[$indecks] == 'M'){    //if monday
+						$curdateCopy->add(new DateInterval('P0D'));
+						$daystring = $daystring . $this->getDayOfWk($curdateCopy->format('Y-m-d'));
+						$freeT = $this->findFree(14, 0, ($sessions * 30 * 3), $curdateCopy->format('Y-m-d'), 0, 30, $username);
+						array_push($freeTimes, $freeT);
+						//print_r($freeTimes);
+					}else if($days[$indecks] == 'T'){  //if tuesday
+						$curdateCopy->add(new DateInterval('P1D'));
+						$daystring = $daystring . $this->getDayOfWk($curdateCopy->format('Y-m-d'));
+						$freeT = $this->findFree(14, 0, ($sessions * 30 * 3), $curdateCopy->format('Y-m-d'), 0, 30, $username);
+						array_push($freeTimes, $freeT);
+					}else if($days[$indecks] == 'W'){   //if wednesday
+						$curdateCopy->add(new DateInterval('P2D'));
+						$daystring = $daystring . $this->getDayOfWk($curdateCopy->format('Y-m-d'));
+						$freeT = $this->findFree(14, 0, ($sessions * 30 * 3), $curdateCopy->format('Y-m-d'), 0, 30, $username);
+						array_push($freeTimes, $freeT);
+					}else if($days[$indecks] == 'R'){   //if thursday
+						$curdateCopy->add(new DateInterval('P3D'));
+						$daystring = $daystring . $this->getDayOfWk($curdateCopy->format('Y-m-d'));
+						$freeT = $this->findFree(14, 0, ($sessions * 30 * 3), $curdateCopy->format('Y-m-d'), 0, 30, $username);
+						array_push($freeTimes, $freeT);
+					}else if($days[$indecks] == 'F'){   //if friday
+						$curdateCopy->add(new DateInterval('P4D'));
+						$daystring = $daystring . $this->getDayOfWk($curdateCopy->format('Y-m-d'));
+						$freeT = $this->findFree(14, 0, ($sessions * 30 * 3), $curdateCopy->format('Y-m-d'), 0, 30, $username);
+						array_push($freeTimes, $freeT);
+					}else if($days[$indecks] == 'A'){   //if saturday
+						$curdateCopy->add(new DateInterval('P5D'));
+						$daystring = $daystring . $this->getDayOfWk($curdateCopy->format('Y-m-d'));
+						$freeT = $this->findFree(14, 0, ($sessions * 30 * 3), $curdateCopy->format('Y-m-d'), 0, 30, $username);
+						array_push($freeTimes, $freeT);
+					}else{                        //if sunday
+						$curdateCopy->add(new DateInterval('P6D'));
+						$daystring = $daystring . $this->getDayOfWk($curdateCopy->format('Y-m-d'));
+						$freeT = $this->findFree(14, 0, ($sessions * 30 * 3), $curdateCopy->format('Y-m-d'), 0, 30, $username);
+						array_push($freeTimes, $freeT);
+					}
 					
+					$curdateCopy = new DateTime($currentDate);	
 				}
-			}
-			
-			//HOLY CRAP, LOOK OUT BEHIND YOU!
-			
-			//get the day of the week for the dates tested
-			$dow1 = $this->getDayOfWk($curdatePlusOne->format('Y-m-d'));
-			$dow2 = $this->getDayOfWk($curdatePlus2->format('Y-m-d'));
-			
-			//concatenate string for days attribute of study sessions
-			$daystring = "M" . $dow1 . $dow2;
-			//echo $daystring;
-			
-			//print_r($schedTimes);
-			
-			//schedule study times (as single events for now, might switch to multi events if single events yield too many events) <--- yep
-			for($x = 0; $x < $size; $x++){
-				$sT = gmdate('H:i:s', $schedTimes[$x]);         //format start time 
-				$eT = gmdate('H:i:s', $schedTimes[$x] + 1800);  //format end time
-				$endDate = new DateTime($currentDate);          //end date(end of week)
-				$endDate->add(new DateInterval('P6D'));  //end date = end of week
-				//changed to course events.  every study session will have a "parent" course to which it is linked
-				$this->createCourse('', $curdate->format('Y-m-d'), $endDate->format('Y-m-d'),0,0,$eT, $sT, "study " . $number, $crsInfo[0][5], $daystring, $crsInfo[0][6], $username, $crsInfo[0][13]);
-			    //                notes  start date             end date            disregard  start & end time   title       priority      days of week  location         user       parent course
-			}
-			//more unnecessary stuff
-			//$curdate = new DateTime($currentDate);
-			//echo $curdate->format('Y-m-d');
+				//print_r($freeTimes);
+				
+				$size = 0;  //size of the array of start times to schedule study sessions
+				$schedTimes = array();   //the array of start times to schedule study sessions
+				
+				
+				if(sizeof($freeTimes[0]) >= $sessions * 2){
+					for($xedni = 0; $xedni < sizeof($freeTimes[0]) && $size < $sessions; $xedni++){
+						$bool = true;
+						for($xedni2 = 0; $xedni2 < sizeof($freeTimes) && $bool; $xedni2++){
+							if(in_array($freeTimes[0][$xedni * 2], $freeTimes[$xedni2])){
+							}else{
+								$bool = false;
+							}
+						}
+						
+						if($bool){
+							$size = array_push($schedTimes, $freeTimes[0][$xedni * 2]);
+						}
+					}
+				}
+		
+				//HOLY CRAP, LOOK OUT BEHIND YOU!
+				
+				print_r($schedTimes);
+				
+				//schedule study times (as single events for now, might switch to multi events if single events yield too many events) <--- yep
+				for($x = 0; $x < $size; $x++){
+					//echo "looped\n";
+					$sT = gmdate('H:i:s', $schedTimes[$x]);         //format start time 
+					$eT = gmdate('H:i:s', $schedTimes[$x] + 1800);  //format end time
+					$endDate = new DateTime($currentDate);          //end date(end of week)
+					$endDate->add(new DateInterval('P6D'));  //end date = end of week
+					//changed to course events.  every study session will have a "parent" course to which it is linked
+					$this->createCourse('', $curdate->format('Y-m-d'), $endDate->format('Y-m-d'),0,0,$eT, $sT, "study " . $number, $crsInfo[0][5], $daystring, $crsInfo[0][6], $username, $crsInfo[0][13]);
+					//                notes  start date             end date            disregard  start & end time   title       priority      days of week  location         user       parent course
+				}
 		//}
 		
 		return true;

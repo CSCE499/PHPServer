@@ -244,12 +244,15 @@
 		 $minute = $_POST['minute'];
 		 $range = $_POST['range'];
 		 $date = $_POST['date'];
+		 $dhr = $_POST['dhr'];
+		 $dmn = $_POST['dmn'];
+		 $usr = $_POST['usr'];
 		 
-		 $freetimes = $db->findFree($hr, $minute, $range, $date);
+		 $freetimes = $db->findFree($hr, $minute, $range, $date, $dhr, $dmn, $usr);
 		 
 		 if($freetimes){
 			 $response["success"] = 1;
-			 $response["free"] = gmdate("H:i:s", $freetimes[0]);
+			 $response["free"] = $freetimes;//gmdate("H:i:s", $freetimes[0]);
 			 echo json_encode($response);
 		 }else{
 			 $response["error"] = 5;
